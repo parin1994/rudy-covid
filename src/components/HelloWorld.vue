@@ -35,16 +35,23 @@
       item-key="name"
       class="elevation-1"
     ></v-data-table>
+    <Barchart
+      v-if="chartdata.labels"
+      :chartdata="chartdata"
+      :options="options"
+    />
   </div>
 </template>
 
 <script>
 import moment from "moment";
+import Barchart from "./Barchart";
 export default {
+  components: {
+    Barchart,
+  },
   data: () => ({
-    date: new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-      .toISOString()
-      .substr(0, 10),
+    date: null,
     modal: false,
     reportCovid: null,
     tabledata: null,
@@ -54,16 +61,25 @@ export default {
       { text: "deaths", value: "deaths" },
       { text: "recovered", value: "recovered" },
     ],
-    labels: ["cases", "deaths", "recovered"],
-    value: [200, 675, 410],
+    label: [
+      { name: "cases", color: "#ff0000" },
+      { name: "deaths", color: "#000000" },
+      { name: "recovered", color: "#00ff00" },
+    ],
+    chartdata: {
+      labels: null,
+      datasets: null,
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+    },
   }),
   methods: {
     async onClickdate(date) {
-      console.log(date);
+      this.modal = false;
       const startDate = moment(date[0], "YYYY-MM-DD").format("DD/MM/YYYY");
       const endDate = moment(date[1], "YYYY-MM-DD").format("DD/MM/YYYY");
-      console.log(startDate);
-      console.log(endDate);
       const data = await this.$axios({
         method: "get",
         url: "https://disease.sh/v3/covid-19/historical/all?lastdays=30",
@@ -93,7 +109,31 @@ export default {
           }
         });
       this.tabledata = array;
-      console.log(this.tabledata);
+      let labels = [];
+      array.map((item) => {
+        labels.push(item.date);
+        return;
+      });
+      this.chartdata.labels = labels;
+      const setData = this.label.map((item) => {
+        const datasetObject = {
+          label: item.name,
+          backgroundColor: item.color,
+          data: [],
+        };
+        array.map((value) => {
+          if (item.name === "cases") {
+            datasetObject.data.push(value.cases);
+          } else if (item.name === "deaths") {
+            datasetObject.data.push(value.deaths);
+          } else {
+            datasetObject.data.push(value.recovered);
+          }
+          return;
+        });
+        return datasetObject;
+      });
+      this.chartdata.datasets = setData;
     },
   },
 };
